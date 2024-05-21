@@ -133,7 +133,7 @@ for i in range(int(n/2)):
 
 
 pair_num=len(vortex_wing_pairs)
-print("pair_num",pair_num)
+
 
 
 # # Display the pairs
@@ -168,18 +168,25 @@ t = wake_ds/U0 #time taken between steps
 #initialize matrices
 tvortex_pts = np.zeros([wake_steps, n, 3]) #trailing edge vortex points
 
-# row 'n' represents the control points, and the column 'n' represents the influence of trailing vortice on that point
-u_matrix = np.zeros([n,n])
-v_matrix = np.zeros([n,n])
-w_matrix = np.zeros([n,n])
+# row 'n' represents the control points, and the column 'pair_num' represents the influence of trailing vortice on that point
+u_matrix = np.zeros([n,pair_num])
+v_matrix = np.zeros([n,pair_num])
+w_matrix = np.zeros([n,pair_num])
+V_eff_matrix=np.zeros([n,pair_num])
+
+
+#The row sum would represent the total induced velocity at a point
+u_matrix_sum = np.zeros(n)
+v_matrix_sum = np.zeros(n)
+w_matrix_sum = np.zeros(n)
+V_eff_matrix_sum = np.zeros(n)
 
 
 
-
-
-V_eff_matrix = np.zeros(n)
 alpha_eff_matrix = np.zeros(n)
 CL_matrix = np.zeros(n).transpose()
+
+
 
 gamma = (np.ones(n)).transpose() #initialize gamma, we are assuming that gamma is 1 initially
 GammaNew_dist = np.zeros(n).transpose()
@@ -202,66 +209,49 @@ for i in range(n):
                 tvortex_pts[k,:,1] = coordinates_wing[:,1] #y coordinate, same as wing distribution
                 tvortex_pts[k,:,2] = -0.75*c*np.sin(alpha_rad) #z, doesnt change
 
-                Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[k,j,:],tvortex_pts[k,-j-1,:])
-                u = Velocity[0]
-                v = Velocity[1]
-                w = Velocity[2]
+            Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[k,j,:],tvortex_pts[k,-j-1,:])
+            u = Velocity[0]
+            v = Velocity[1]
+            w = Velocity[2]
 
-                u_matrix[i][j] += u
-                v_matrix[i][j] += v
-                w_matrix[i][j] += w
+            u_matrix[i][j] += u
+            v_matrix[i][j] += v
+            w_matrix[i][j] += w
 
-                V_i = np.sqrt(u**2 + v**2 + w**2) #induced velocity
+            V_i = np.sqrt(u**2 + v**2 + w**2) #induced velocity
 
-                V_eff = np.sqrt((U0**2) + (V_i**2)) #effective velocity
+            V_eff = np.sqrt((U0**2) + (V_i**2)) #effective velocity
 
-                alpha_i = np.arctan(-w/U0) #induced aoa
+            alpha_i = np.arctan(-w/U0) #induced aoa
 
-                alpha_eff = alpha - alpha_i #effective aoa
+            alpha_eff = alpha - alpha_i #effective aoa
 
-                V_eff_matrix[j] += V_eff #matrix containing a sum of all effective velocities
-                #alpha_eff_matrix[j] += alpha_eff
-
-            else:
-                #for j in range(wake_steps):
-
-                Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[k,j,:],tvortex_pts[k,-j-1,:])
-                u = Velocity[0]
-                v = Velocity[1]
-                w = Velocity[2]
+            V_eff_matrix[i][j] += V_eff #matrix containing a sum of all effective velocities
+            #alpha_eff_matrix[j] += alpha_eff
 
 
-                #Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[0,:,:])
+    u_matrix_sum[i]=sum(u_matrix[i][:])
+    v_matrix_sum[i]=sum(v_matrix[i][:])
+    w_matrix_sum[i]=sum(w_matrix[i][:])
+    V_eff_matrix_sum[i]=sum(V_eff_matrix[i][:])  #Effective velocity at a point should be the row sum.
 
-                u_matrix[i,j] += u
-                v_matrix[i,j] += v
-                w_matrix[i,j] += w
-
-                V_i = np.sqrt(u**2 + v**2 + w**2)
-
-                V_eff = np.sqrt((U0**2) + (V_i**2))
-
-                alpha_i = np.arctan(-w/U0)
-
-                alpha_eff = alpha - alpha_i
-
-                V_eff_matrix[j] += V_eff
-                #alpha_eff_matrix[j] += alpha_eff
 
 #%%       TRY TO PUT EVERYTHING UNDER ITERATING LOOP
 #u_matrix has induced vel for unit circulation, hence multiplied with actual gamma
-U_matrix = U0 + (u_matrix @ gamma)
-V_matrix = v_matrix @ gamma
-W_matrix = w_matrix @ gamma
+U_matrix = U0 + (u_matrix_sum @ gamma)
+V_matrix = v_matrix_sum @ gamma
+W_matrix = w_matrix_sum @ gamma
+
+
 """
 Vel_i_matrix = np.sqrt(U_matrix**2 + V_matrix**2 + W_matrix**2)
 
-V_eff_matrix = np.sqrt(U0**2+Vel_i_matrix**2)
+V_eff_matrix_sum = np.sqrt(U0**2+Vel_i_matrix**2)
 """
 
 
 
-U_wake = np.linspace(V_eff_matrix[int(n/2)], U0, wake_steps)  #wake velocity distribution
+U_wake = np.linspace(V_eff_matrix_sum[int(n/2)], U0, wake_steps)  #wake velocity distribution
 
 #t = wake_distance/U0
 for i in range(n):
@@ -277,7 +267,7 @@ while itr < max_itr:
     for j in range(n):
         if j >0:
             alpha_eff = alpha_eff_matrix[j]
-            V_eff = V_eff_matrix[j]
+            V_eff = V_eff_matrix_sum[j]
 
             CL = compute_CL(alpha_eff)
 

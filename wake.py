@@ -75,8 +75,8 @@ for i in range(M):
         z_last = all_coordinates[i][j][2]
         #print("x_last,y_last,z_last", x_last, y_last, z_last)
         x_new = x_last+ (U_w*t)
-        y_new = y_last + r * math.sin(omega * t)
-        z_new = z_last + r * math.cos(omega * t)
+        y_new =  r * math.sin(omega * t)
+        z_new =  r * math.cos(omega * t)
         
         new_point = [x_new, y_new, z_new]  # Creating the new point as a list
         add_coord.append(new_point)

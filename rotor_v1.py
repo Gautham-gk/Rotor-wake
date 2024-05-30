@@ -12,11 +12,28 @@ import pandas as pd
 
 
 #%%     AIRFOIL DATA
+file = pd.read_excel(r"D:\TU Delft\Q3\Rotor Wake Aero\Assignment\Final code\polar DU95W180 (3).xlsx") #enter polar file location
+# Extract columns for AoA, Cl, Cd, and Cm
+AoA_values = file['Alfa'].tolist()
+Cl_values = file['Cl'].tolist()
+Cd_values = file['Cd'].tolist()
+Cm_values = file['Cm'].tolist()
+
+
+
 
 #given in the tutorial
 def compute_CL(alpha):
     CL = 2*np.pi*np.sin(alpha)
     return CL
+
+
+
+    
+
+
+
+
 
 
 #%%     BIOT SAVART LAW
@@ -151,8 +168,10 @@ alpha_rad = np.deg2rad(alpha)
 #operational parameters
 U0 = 10
 rho = 1.225
-omega = 1       #has to be calc from lambda
+lam=6 
 
+omega = lam*U0/R      #has to be calc from lambda
+print(omega)
 #wake parameters
 wake_steps = 5000
 wake_len = 2*R
@@ -163,12 +182,20 @@ wake_len = 2*R
 #%%     CONTROL POINT DISTRIBUTION
 mu_distribution = np.linspace(root_mu,tip_mu,n)
 
+
 bladey = mu_distribution*R  #starting points of trailing vortices
 
 blade_coordinates = np.zeros([ncp,3])
 
 for i in range(ncp):
     blade_coordinates[i,1] = 0.5*(bladey[i]+ bladey[i+1])
+
+
+#spanwise parameters
+P = 2
+Twist = [-14*(1 - x) for x in mu_distribution] #degrees, blade twist
+B_distribution = [x + P for x in Twist] #degrees, total pitch
+chord_distribution = [3*(1-x) + 1 for x in mu_distribution] #m, chord distribution
 
 
 #%%     INITIALIZE ARRAYS
@@ -262,6 +289,64 @@ while np.all(error > tol):
     # if np.all(error < tol):
     #     print("solution converged")
     #     break
+
+#%% V azim 
+# V_azim = [Uinf + u v w].n_azim +omega*r. n_azim is the cross product of omega and cooordinate_wing. So, it is i X j= k, taking unite normal vector, k_cap=n_azim
+# therefore, V_azim = omega*r + w
+
+Faxim_val=[]
+Fazim_val=[]
+CT_val=[]
+Alfa_val=[]
+phi_val=[]
+CP_val=[]
+
+for i in range(ncp):
+    
+    mu_mean= blade_coordinates[i]/R
+    B = np.interp(mu_mean, mu_distribution, B_distribution) #deg, mean beta
+    c = np.interp(mu_mean, mu_distribution, chord_distribution) #m, mean chord
+    
+    
+    Ur= omega*blade_coordinates[i] + W_matrix[i]
+    Ua= U_matrix[i]
+    
+    
+    W = np.sqrt(Ur**2 + Ua**2) #m/s, inflow speed
+    phi = np.arctan(Ur/Ua) #rad, inflow angle
+    phi_deg =np.degrees(phi) #deg, inflow angle
+    phi_val.append(phi_deg)
+    Alfa = phi_deg + B #deg, angle of attack
+    Alfa_val.append(Alfa)
+    
+            
+    #extract Cl and Cd from the excel file data
+    Cl = np.interp(Alfa, AoA_values, Cl_values)
+    Cd = np.interp(Alfa, AoA_values, Cd_values)
+            
+    Lift = 0.5*rho*(W**2)*c*Cl #N, 3D lift force by the blade element
+    Drag = 0.5*rho*(W**2)*c*Cd #N, 3D drag force by the blade element
+            
+    Faxial = (Lift*np.cos(phi) + Drag*np.sin(phi)) #N, axial force
+    Fazim = (Lift*np.sin(phi) - Drag*np.cos(phi))   #N, azimuthal force
+    Faxim_val.append(Faxial)
+    Fazim_val.append(Fazim)
+    
+    
+    Thrust = Faxial*(R*(mu_distribution[i+1]-mu_distribution[i]))
+    Torque = Fazim*(R*(mu_distribution[i+1]-mu_distribution[i]))*R*mu_mean
+            
+    A = np.pi*((blade_coordinates[i+1])**2 - (blade_coordinates[i])**2)
+    CT = (Thrust)/(0.5*rho*(U0**2)*A) #Thrust coefficient from momentum theory
+    CT_val.append(CT)
+    
+    Power = Torque*omega
+    CP = Power / (0.5*rho*(U0**3)*A)
+    CP_val.append(CP)
+    
+
+
+# In CT,CP formula,add N to account for number of blades
 
 #%%     POST PROCESSING
 fig = plt.figure(figsize=(12, 5))

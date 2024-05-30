@@ -32,8 +32,8 @@ tvortex = np.zeros([wake_steps,n,3])
 for k in range(wake_steps):
     t = 0
     for i in range(n):
-        #tvortex[k,i,0] = -u_wake[k]*time[k]
-        tvortex[k,i,0] = 2*k
+        tvortex[k,i,0] = -u_wake[k]*time[k]
+        #tvortex[k,i,0] = 2*k
         
         tvortex[k,i,1] = bladey[i]*np.cos(omega*time[k])
         tvortex[k,i,2] = bladey[i]*np.sin(omega*time[k])

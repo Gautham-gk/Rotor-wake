@@ -153,6 +153,7 @@ def induced_vel_mat(blade_coordinates,tvortex_pts):
                     u_matrix[i][j] += u
                     v_matrix[i][j] += v
                     w_matrix[i][j] += w
+                    
     return u_matrix, v_matrix, w_matrix
 #%%     DEFINE PARAMETERS
 
@@ -161,22 +162,35 @@ root_mu = 0.2
 tip_mu = 1
 R = 50
 c = 1
-n = 20
+n = 16
 ncp = n-1
-alpha = 5 #deg
-alpha_rad = np.deg2rad(alpha)
-mu_distribution = np.linspace(root_mu,tip_mu,n)
+#alpha = 5 #deg
+#alpha_rad = np.deg2rad(alpha)
+
+
+#mu_distribution = np.linspace(root_mu,tip_mu,n)
+#This is for uniform
+
+theta = np.linspace(np.pi, 0, n)
+cosine_values = np.cos(theta)
+
+mu_avg=0.5*(tip_mu+root_mu)
+mu_distribution =0.5*(tip_mu-root_mu)*cosine_values + 0.5*(tip_mu+root_mu)
+
+
+
+
 
 #operational parameters
 U0 = 10
 rho = 1.225
-lam = 6
+lam = 8
 
 omega = lam*U0/R        #has to be calc from lambda
 
 #wake parameters
 wake_steps = 7000
-wake_len = 10*R
+wake_len = 5*R
 
 #spanwise parameters
 
@@ -184,6 +198,8 @@ P = 2
 Twist = [-14*(1-x) for x in mu_distribution]
 B_distribution = [x + P for x in Twist]
 chord_distribution = [3*(1-x)+1 for x in mu_distribution]
+
+
 
 
 #%%     CONTROL POINT DISTRIBUTION
@@ -206,7 +222,7 @@ u_matrix = np.zeros([ncp,n])
 v_matrix = np.zeros([ncp,n])
 w_matrix = np.zeros([ncp,n])
 
-a =0.2
+a =0.25
     
 
 # Trailing vortices
@@ -226,16 +242,16 @@ u_matrix, v_matrix, w_matrix = induced_vel_mat(blade_coordinates, tvortex_pts)
 
 #%%     SOLVER
 
-tol = 0.9
+tol = 0.00001
 itr = 0
-error = 3
-a = 0.2
-a_prime = 0.2
+error = 1
+a_prime = 0.01
+
 
 itr = 0
 max_itr = 200
 
-while np.max(error)> tol:
+while np.all(error > tol):
 #while itr < max_itr:
     #print(itr)
 
@@ -248,9 +264,11 @@ while np.max(error)> tol:
     V_matrix = v_matrix @ gamma
     W_matrix = w_matrix @ gamma   #downwash
     
-    Vaxial = -U_matrix + U0
-    Vazim = W_matrix + omega*blade_coordinates[:,1]
     
+    Um = -1* U_matrix
+    #print(Um)
+    Vaxial = U0 + Um
+    Vazim = W_matrix + omega*blade_coordinates[:,1] 
     V_eff_matrix = np.sqrt(Vaxial**2 +  Vazim**2)
     
     
@@ -267,6 +285,7 @@ while np.max(error)> tol:
         #print("B", B)
         
         alpha_eff = alpha_eff_matrix[j]  + B                       # effective angle of attack
+        alpha_eff_matrix[j] = alpha_eff
         phi = phi_matrix[j]
         V_eff = V_eff_matrix[j]                                 # effective velocity
 
@@ -301,7 +320,7 @@ while np.max(error)> tol:
             GammaNew_trail[j] = Gamma_bound[j] - Gamma_bound[j-1]  
             GammaNew_trail[n-j-1] = GammaNew_trail[j]
     
-    m = 0.25
+    m = 0.6
     gamma = m*gamma + (1-m)*GammaNew_trail                    # trailing gamma estimate for next iteration
     #itr += 1
     
@@ -310,6 +329,7 @@ while np.max(error)> tol:
     
     error = np.abs(gamma - GammaNew_trail)
     print("Max error:", np.max(error))
+    print("min error",np.min(error))
     itr += 1
 
     # if np.all(error < tol):
@@ -341,7 +361,8 @@ ax.view_init(elev=30, azim=45)  # adjust  default viewing angle
 # Subplot for CL distribution
 
 plt.subplot(122)
-plt.plot(blade_coordinates[:,1]/R, np.rad2deg(phi_matrix))
+plt.plot(blade_coordinates[:,1]/R, np.rad2deg(phi_matrix),marker='o',label='phi')
+plt.plot(blade_coordinates[:,1]/R, alpha_eff_matrix ,marker='o',label='AOA')
 
 plt.title(f"CL distribution for constant distribution with {int(n/2)} HS vortices")
 plt.xlabel('Normalized Spanwise coordinate')
@@ -349,7 +370,7 @@ plt.ylabel('CL')
 #plt.ylim(0,np.max(CL_matrix)+0.1)
 plt.grid()
 
-
+plt.legend()
 plt.tight_layout()
 
 

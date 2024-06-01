@@ -11,13 +11,13 @@ import pandas as pd
 
 
 #%%     AIRFOIL DATA
-file = pd.read_excel(r"C:\Users\sunny\Documents\TU Delft AWE Course Stuffs\Q3 Courses and Books\AE4135 Rotor-Wake Aerodynamics\polar DU95W180 (3).xlsx") #enter polar file location
+#file = pd.read_excel(r"C:\Users\sunny\Documents\TU Delft AWE Course Stuffs\Q3 Courses and Books\AE4135 Rotor-Wake Aerodynamics\polar DU95W180 (3).xlsx") #enter polar file location
 #C:\Users\sunny\Documents\TU Delft AWE Course Stuffs\Q3 Courses and Books\AE4135 Rotor-Wake Aerodynamics\BEM_turbine\polar_DU95W180.xlsx"
 # Extract columns for AoA, Cl, Cd, and Cm
-AoA_values = file['Alfa'].tolist()
-Cl_values = file['Cl'].tolist()
-Cd_values = file['Cd'].tolist()
-Cm_values = file['Cm'].tolist()
+#AoA_values = file['Alfa'].tolist()
+#Cl_values = file['Cl'].tolist()
+#Cd_values = file['Cd'].tolist()
+#Cm_values = file['Cm'].tolist()
 
 
 

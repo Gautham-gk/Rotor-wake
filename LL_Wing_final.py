@@ -90,18 +90,18 @@ def Biot_Savart(coordinates_wing, coordinates_wake_1,coordinates_wake_2):
 #%%     CONTROL POINT DISTRIBUTION
 
 
-b = 10      # wing span
-n = 50     # Total number of points in the distribution
+b = 70     # wing span
+n =  34  # Total number of points in the distribution
 ncp = n-1   # control points - bound vortex
 
 theta = np.linspace(0, np.pi, n)
 cosine_values = np.cos(theta)
 
-# y_values = -b/2 * cosine_values + b/2    #uncheck for cosine distribution
-# distribution = "Cosine"
+y_values = -b/2 * cosine_values + b/2    #uncheck for cosine distribution
+distribution = "Cosine"
 
-y_values = np.linspace(0,b,n)           #uncheck for uniform distribution
-distribution = "Uniform"
+# y_values = np.linspace(0,b,n)           #uncheck for uniform distribution
+# distribution = "Uniform"
 
 # Define x and z coordinates (constant for wing)
 x_values = np.zeros(ncp)
@@ -167,48 +167,49 @@ tvortex_pts[:,:,2] = 0
 for i in range(n): 
     for k in range(1,wake_steps):
 
-        tvortex_pts[k,i,0] =  tvortex_pts[k-1,i,0] - U0*t
-
+        tvortex_pts[k,i,0] =  tvortex_pts[k-1,i,0] + U0*t
+        
 #%%     INDUCED VELOCITY MATRIX GENERATION
 for i in range(ncp):
     for j in range(n):
         for k in range(wake_steps-1):
             
-            # Compute induced velocity by each trailing filament
-            Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[k,j,:],tvortex_pts[k+1,j,:]) 
-            u = Velocity[0]
-            v = Velocity[1]
-            w = Velocity[2]
+            # sign reversal of gamma is incorporated by interchanging the order of wake points. Right hand thumb rule.
+            if j < n/2:
             
-            #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
-            u_matrix[i][j] += u
-            v_matrix[i][j] += v
+                # Compute induced velocity by each trailing filament
+                Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[k+1,j,:],tvortex_pts[k,j,:]) 
+                u = Velocity[0]
+                v = Velocity[1]
+                w = Velocity[2]
+                
+                #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
+                u_matrix[i][j] += u
+                v_matrix[i][j] += v
+                w_matrix[i][j] += w
+            else:
+                # Compute induced velocity by each trailing filament
+                Velocity = Biot_Savart(coordinates_wing[i], tvortex_pts[k,j,:],tvortex_pts[k+1,j,:]) 
+                u = Velocity[0]
+                v = Velocity[1]
+                w = Velocity[2]
+                
+                #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
+                u_matrix[i][j] += u
+                v_matrix[i][j] += v
+                w_matrix[i][j] += w
+                
             
-            if j <n/2:  # trailing vortices that have CW circulation
-                if j ==i:
-                    
-                    w_matrix[i][j] +=  -np.abs(w)
-                elif i <j:
-                    w_matrix[i][j] +=  +np.abs(w)
-                else:
-                    w_matrix[i][j] +=  -np.abs(w)
-                    
-            else:       # trailing vortices that have CCW circulation
-                if i == j:
-                    w_matrix[i][j] +=  +np.abs(w)
-                elif i <j:
-                    w_matrix[i][j] +=  -np.abs(w)
-                else:
-                    w_matrix[i][j] +=  +np.abs(w)
 
 #%%     LIFTING LINE SOLVER
 
-max_itr = 100
-tol = 1e-6
+#max_itr = 1000
+tol = 1e-12
 itr = 0
+error = 1
 
-while itr < max_itr:
-    print(itr)
+while np.all(error > tol):
+    #print(itr)
     
     """
     u_matrix @ gamma gives the induced u velocity for actual gamma distribution
@@ -227,9 +228,9 @@ while itr < max_itr:
     
     for j in range(ncp):
         
-        if itr == 0:
-            dspan = tvortex_pts[0,j+1,1] - tvortex_pts[0,j,1]       # length of bound vortex filament
-            
+        # if itr == 0:
+        #     dspan = tvortex_pts[0,j+1,1] - tvortex_pts[0,j,1]       # length of bound vortex filament
+        dspan =1   
         alpha_eff = alpha_eff_matrix[j]                         # effective angle of attack
         V_eff = V_eff_matrix[j]                                 # effective velocity
 
@@ -257,13 +258,16 @@ while itr < max_itr:
     gamma = 0.75*gamma + 0.25*GammaNew_trail                    # trailing gamma estimate for next iteration
     
     
-    itr += 1
+    
     print("iterations", itr)
+    
     error = np.abs(gamma - GammaNew_trail)
+    print("Max error:", np.max(error))
+    itr += 1
 
-    if np.all(error < tol):
-        print("solution converged")
-        break
+    # if np.all(error < tol):
+    #     print("solution converged")
+    #     break
     
 #%%     POST PROCESSING
 
@@ -281,7 +285,7 @@ tvortex_x = tvortex_pts[:,:,0]
 tvortex_y = tvortex_pts[:,:,1]
 tvortex_z = tvortex_pts[:,:,2]
 ax.plot_wireframe(tvortex_x, tvortex_y, tvortex_z)
-
+ax.scatter(tvortex_pts[0,:,0],tvortex_pts[0,:,1],tvortex_pts[0,:,2])
 ax.set_box_aspect([10, 3, 2]) # adjust the ratio of 3d plot
 ax.set_xlabel('X')
 ax.set_ylabel('Y')

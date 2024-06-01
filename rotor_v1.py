@@ -12,7 +12,7 @@ import pandas as pd
 
 
 #%%     AIRFOIL DATA
-file = pd.read_excel(r"D:\TU Delft\Q3\Rotor Wake Aero\Assignment\Final code\polar DU95W180 (3).xlsx") #enter polar file location
+file = pd.read_excel(r"E:\Universities\TU Delft\AWE\Q3\Rotorwake\BEM\polar DU95W180 (3).xlsx") #enter polar file location
 # Extract columns for AoA, Cl, Cd, and Cm
 AoA_values = file['Alfa'].tolist()
 Cl_values = file['Cl'].tolist()
@@ -133,7 +133,7 @@ def induced_vel_mat(blade_coordinates,tvortex_pts):
                 w = Velocity[2]
                 
                 #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
-                u_matrix[i][j] += u
+                u_matrix[i][j] -= u
                 v_matrix[i][j] += v
                 
                 if j <n/2:  # trailing vortices that have CW circulation

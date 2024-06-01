@@ -173,7 +173,7 @@ lam=6
 omega = lam*U0/R      #has to be calc from lambda
 print(omega)
 #wake parameters
-wake_steps = 5000
+wake_steps = 500
 wake_len = 2*R
 
 

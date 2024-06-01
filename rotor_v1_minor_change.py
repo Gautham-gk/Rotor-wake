@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Sat Jun  1 10:08:46 2024
+
+@author: Mathesh JK
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Thu May 30 18:00:34 2024
 
 @author: Mathesh JK
@@ -10,16 +17,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+
 #%%     AIRFOIL DATA
-#file = pd.read_excel(r"C:\Users\sunny\Documents\TU Delft AWE Course Stuffs\Q3 Courses and Books\AE4135 Rotor-Wake Aerodynamics\polar DU95W180 (3).xlsx") #enter polar file location
-#C:\Users\sunny\Documents\TU Delft AWE Course Stuffs\Q3 Courses and Books\AE4135 Rotor-Wake Aerodynamics\BEM_turbine\polar_DU95W180.xlsx"
-# Extract columns for AoA, Cl, Cd, and Cm
-#AoA_values = file['Alfa'].tolist()
-#Cl_values = file['Cl'].tolist()
-#Cd_values = file['Cd'].tolist()
-#Cm_values = file['Cm'].tolist()
-
-
 
 
 #given in the tutorial
@@ -27,14 +26,12 @@ def compute_CL(alpha):
     CL = 2*np.pi*np.sin(alpha)
     return CL
 
-
-
-    
-
-
-
-
-
+file = pd.read_excel(r"E:\Universities\TU Delft\AWE\Q3\Rotorwake\BEM\polar DU95W180 (3).xlsx") #enter polar file location
+# Extract columns for AoA, Cl, Cd, and Cm
+AoA_values = file['Alfa'].tolist()
+Cl_values = file['Cl'].tolist()
+Cd_values = file['Cd'].tolist()
+Cm_values = file['Cm'].tolist()
 
 #%%     BIOT SAVART LAW
 #from tutorial
@@ -113,7 +110,7 @@ def wake_points_gen(a):
     
     for k in range(wake_steps):
         for i in range(n):
-            tvortex_pts[k,i,0] = -u_wake[k]*time[k]
+            tvortex_pts[k,i,0] = +u_wake[k]*time[k]
             #tvortex[k,i,0] = 2*k
             
             tvortex_pts[k,i,1] = bladey[i]*np.cos(omega*time[k])
@@ -126,32 +123,36 @@ def induced_vel_mat(blade_coordinates,tvortex_pts):
         for j in range(n):
             for k in range(wake_steps-1):
                 
-                # Compute induced velocity by each trailing filament
-                Velocity = Biot_Savart(blade_coordinates[i], tvortex_pts[k,j,:],tvortex_pts[k+1,j,:]) 
-                u = Velocity[0]
-                v = Velocity[1]
-                w = Velocity[2]
+                # # Compute induced velocity by each trailing filament
+                # Velocity = Biot_Savart(blade_coordinates[i], tvortex_pts[k,j,:],tvortex_pts[k+1,j,:]) 
+                # u = Velocity[0]
+                # v = Velocity[1]
+                # w = Velocity[2]
                 
-                #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
-                u_matrix[i][j] += u
-                v_matrix[i][j] += v
+                # sign reversal of gamma is incorporated by interchanging the order of wake points. Right hand thumb rule.
+                if j < n/2:
                 
-                if j <n/2:  # trailing vortices that have CW circulation
-                    if j ==i:
-                        
-                        w_matrix[i][j] +=  -np.abs(w)
-                    elif i <j:
-                        w_matrix[i][j] +=  +np.abs(w)
-                    else:
-                        w_matrix[i][j] +=  -np.abs(w)
-                        
-                else:       # trailing vortices that have CCW circulation
-                    if i == j:
-                        w_matrix[i][j] +=  +np.abs(w)
-                    elif i <j:
-                        w_matrix[i][j] +=  -np.abs(w)
-                    else:
-                        w_matrix[i][j] +=  +np.abs(w)
+                    # Compute induced velocity by each trailing filament
+                    Velocity = Biot_Savart(blade_coordinates[i], tvortex_pts[k+1,j,:],tvortex_pts[k,j,:]) 
+                    u = Velocity[0]
+                    v = Velocity[1]
+                    w = Velocity[2]
+                    
+                    #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
+                    u_matrix[i][j] += u
+                    v_matrix[i][j] += v
+                    w_matrix[i][j] += w
+                else:
+                    # Compute induced velocity by each trailing filament
+                    Velocity = Biot_Savart(blade_coordinates[i], tvortex_pts[k,j,:],tvortex_pts[k+1,j,:]) 
+                    u = Velocity[0]
+                    v = Velocity[1]
+                    w = Velocity[2]
+                    
+                    #for a single trailing vortex and control point pair, all trailing filament contributions are added to a single element
+                    u_matrix[i][j] += u
+                    v_matrix[i][j] += v
+                    w_matrix[i][j] += w
     return u_matrix, v_matrix, w_matrix
 #%%     DEFINE PARAMETERS
 
@@ -160,27 +161,32 @@ root_mu = 0.2
 tip_mu = 1
 R = 50
 c = 1
-n = 16
+n = 20
 ncp = n-1
 alpha = 5 #deg
 alpha_rad = np.deg2rad(alpha)
+mu_distribution = np.linspace(root_mu,tip_mu,n)
 
 #operational parameters
 U0 = 10
 rho = 1.225
-lam=6 
+lam = 6
 
-omega = lam*U0/R      #has to be calc from lambda
-print(omega)
+omega = lam*U0/R        #has to be calc from lambda
+
 #wake parameters
-wake_steps = 5000
-wake_len = 2*R
+wake_steps = 7000
+wake_len = 10*R
 
+#spanwise parameters
 
+P = 2
+Twist = [-14*(1-x) for x in mu_distribution]
+B_distribution = [x + P for x in Twist]
+chord_distribution = [3*(1-x)+1 for x in mu_distribution]
 
 
 #%%     CONTROL POINT DISTRIBUTION
-mu_distribution = np.linspace(root_mu,tip_mu,n)
 
 
 bladey = mu_distribution*R  #starting points of trailing vortices
@@ -191,13 +197,6 @@ for i in range(ncp):
     blade_coordinates[i,1] = 0.5*(bladey[i]+ bladey[i+1])
 
 
-#spanwise parameters
-P = 2
-Twist = [-14*(1 - x) for x in mu_distribution] #degrees, blade twist
-B_distribution = [x + P for x in Twist] #degrees, total pitch
-chord_distribution = [3*(1-x) + 1 for x in mu_distribution] #m, chord distribution
-
-
 #%%     INITIALIZE ARRAYS
 
 # induced velocity matrix for unit trailing vortex circulation
@@ -206,6 +205,9 @@ chord_distribution = [3*(1-x) + 1 for x in mu_distribution] #m, chord distributi
 u_matrix = np.zeros([ncp,n])
 v_matrix = np.zeros([ncp,n])
 w_matrix = np.zeros([ncp,n])
+
+a =0.2
+    
 
 # Trailing vortices
 gamma = (np.ones(n)).transpose() 
@@ -219,48 +221,71 @@ GammaNew_bound = Gamma_bound.copy()
 
 tvortex_pts = np.zeros([wake_steps, n, 3]) #trailing edge vortex points
 
+tvortex_pts = wake_points_gen(a)
+u_matrix, v_matrix, w_matrix = induced_vel_mat(blade_coordinates, tvortex_pts)
+
 #%%     SOLVER
 
-tol = 1e-3
+tol = 0.9
 itr = 0
-error = 1
+error = 3
 a = 0.2
 a_prime = 0.2
 
-while np.all(error > tol):
+itr = 0
+max_itr = 200
+
+while np.max(error)> tol:
+#while itr < max_itr:
     #print(itr)
-    
-    tvortex_pts = wake_points_gen(a)
-    u_matrix, v_matrix, w_matrix = induced_vel_mat(blade_coordinates, tvortex_pts)
+
     """
     u_matrix @ gamma gives the induced u velocity for actual gamma distribution
     
     """
     # Effective velocity at each control point for the actual trailing gamma distribution
-    U_matrix = U0 + (u_matrix @ gamma)  
+    U_matrix = (u_matrix @ gamma)  
     V_matrix = v_matrix @ gamma
-    W_matrix = w_matrix @ gamma #downwash
+    W_matrix = w_matrix @ gamma   #downwash
     
-    V_eff_matrix = np.sqrt(U_matrix**2 + V_matrix**2 + W_matrix**2)
+    Vaxial = -U_matrix + U0
+    Vazim = W_matrix + omega*blade_coordinates[:,1]
+    
+    V_eff_matrix = np.sqrt(Vaxial**2 +  Vazim**2)
     
     
-    alpha_i_matrix = np.arctan(W_matrix/ U_matrix) # induced AoA due to downwash, negative sign taken care in velocity direction
-    alpha_eff_matrix = alpha_rad + alpha_i_matrix  # alpha_i_matrix sign depends on velocity direction, so add these two angles
+    phi_matrix = np.arctan(Vaxial/ Vazim) # induced AoA due to downwash, negative sign taken care in velocity direction
+    alpha_eff_matrix = np.rad2deg( phi_matrix ) # alpha_i_matrix sign depends on velocity direction, so add these two angles
     
     for j in range(ncp):
         
-        # if itr == 0:
-        #     dspan = tvortex_pts[0,j+1,1] - tvortex_pts[0,j,1]       # length of bound vortex filament
-        dspan =1   
-        alpha_eff = alpha_eff_matrix[j]                         # effective angle of attack
+        mu = blade_coordinates[j,1]/R
+        A = np.pi*((R*mu_distribution[j+1])**2 - (R*mu_distribution[j])**2) 
+        B = np.interp(mu, mu_distribution, B_distribution)
+        c = np.interp(mu, mu_distribution, chord_distribution)
+        
+        #print("B", B)
+        
+        alpha_eff = alpha_eff_matrix[j]  + B                       # effective angle of attack
+        phi = phi_matrix[j]
         V_eff = V_eff_matrix[j]                                 # effective velocity
 
-        CL = compute_CL(alpha_eff)                              # CL at the bound filament
+        Cl = np.interp(alpha_eff, AoA_values, Cl_values)        # Cl at the bound filament
+        Cd = np.interp(alpha_eff, AoA_values, Cd_values)
 
-        CL_matrix[j] = CL                                       # CL distribution matrix
+        CL_matrix[j] = Cl                                      # CL distribution matrix
         
         
-        Lift = 0.5*rho*(V_eff**2)*CL*c*(dspan)*np.cos(0.5*(alpha_i_matrix[j]))  #Lift - perpendicular to freestream
+        Lift = 0.5*rho*(V_eff**2)*Cl*c                          #Lift 
+        Drag = 0.5*rho*(V_eff**2)*Cd*c                          # Drag
+        
+        Faxial = Lift * np.cos(phi) + Drag*np.sin(phi)
+        Fazim = Lift * np.sin(phi) - Drag*np.cos(phi)
+        
+        Thrust = Faxial*(R*(mu_distribution[j+1]-mu_distribution[j]))
+        Torque = Fazim*(R*(mu_distribution[j+1]-mu_distribution[j]))
+        
+        CT = (Thrust)/(0.5*rho*(U0**2)*A)
         
         gammaNew = Lift/(rho*V_eff)                             # Circulation from Lift values
 
@@ -275,9 +300,10 @@ while np.all(error > tol):
         else:
             GammaNew_trail[j] = Gamma_bound[j] - Gamma_bound[j-1]  
             GammaNew_trail[n-j-1] = GammaNew_trail[j]
-        
-    gamma = 0.75*gamma + 0.25*GammaNew_trail                    # trailing gamma estimate for next iteration
     
+    m = 0.25
+    gamma = m*gamma + (1-m)*GammaNew_trail                    # trailing gamma estimate for next iteration
+    #itr += 1
     
     
     print("iterations", itr)
@@ -289,75 +315,6 @@ while np.all(error > tol):
     # if np.all(error < tol):
     #     print("solution converged")
     #     break
-
-#%% V azim 
-# V_azim = [Uinf + u v w].n_azim +omega*r. n_azim is the cross product of omega and cooordinate_wing. So, it is i X j= k, taking unite normal vector, k_cap=n_azim
-# therefore, V_azim = omega*r + w
-
-Faxim_val=[]
-Fazim_val=[]
-CT_val=[]
-Alfa_val=[]
-phi_val=[]
-CP_val=[]
-
-for i in range(ncp):
-    
-    mu_mean= blade_coordinates[i]/R
-    B = np.interp(mu_mean, mu_distribution, B_distribution) #deg, mean beta
-    c = np.interp(mu_mean, mu_distribution, chord_distribution) #m, mean chord
-    
-    
-    Ur= omega*blade_coordinates[i] + W_matrix[i]
-    Ua= U_matrix[i]
-    
-    
-    W = np.sqrt(Ur**2 + Ua**2) #m/s, inflow speed
-    phi = np.arctan(Ur/Ua) #rad, inflow angle
-    phi_deg =np.degrees(phi) #deg, inflow angle
-    phi_val.append(phi_deg)
-    Alfa = phi_deg + B #deg, angle of attack
-    Alfa_val.append(Alfa)
-    
-            
-    #extract Cl and Cd from the excel file data
-    Cl = np.interp(Alfa, AoA_values, Cl_values)
-    Cd = np.interp(Alfa, AoA_values, Cd_values)
-            
-    Lift = 0.5*rho*(W**2)*c*Cl #N, 3D lift force by the blade element
-    Drag = 0.5*rho*(W**2)*c*Cd #N, 3D drag force by the blade element
-            
-    Faxial = (Lift*np.cos(phi) + Drag*np.sin(phi)) #N, axial force
-    Fazim = (Lift*np.sin(phi) - Drag*np.cos(phi))   #N, azimuthal force
-    Faxim_val.append(Faxial)
-    Fazim_val.append(Fazim)
-    
-    if i < ncp - 1:
-        Thrust = Faxial * (R * (mu_distribution[i+1] - mu_distribution[i]))
-        Torque = Fazim * (R * (mu_distribution[i+1] - mu_distribution[i])) * R * mu_mean
-        
-        A = np.pi * ((bladey[i+1])**2 - (bladey[i])**2)
-        CT = (Thrust) / (0.5 * rho * (U0**2) * A)  # Thrust coefficient from momentum theory
-        CT_val.append(CT)
-        
-        Power = Torque * omega
-        CP = Power / (0.5 * rho * (U0**3) * A)
-        CP_val.append(CP)
-        
-    # Thrust = Faxial*(R*(mu_distribution[i+1]-mu_distribution[i]))
-    # Torque = Fazim*(R*(mu_distribution[i+1]-mu_distribution[i]))*R*mu_mean
-            
-    # A = np.pi*((blade_coordinates[i+1])**2 - (blade_coordinates[i])**2)
-    # CT = (Thrust)/(0.5*rho*(U0**2)*A) #Thrust coefficient from momentum theory
-    # CT_val.append(CT)
-    
-    # Power = Torque*omega
-    # CP = Power / (0.5*rho*(U0**3)*A)
-    # CP_val.append(CP)
-    
-
-
-# In CT,CP formula,add N to account for number of blades
 
 #%%     POST PROCESSING
 fig = plt.figure(figsize=(12, 5))
@@ -384,12 +341,12 @@ ax.view_init(elev=30, azim=45)  # adjust  default viewing angle
 # Subplot for CL distribution
 
 plt.subplot(122)
-plt.plot(blade_coordinates[:,1]/R, CL_matrix)
+plt.plot(blade_coordinates[:,1]/R, np.rad2deg(phi_matrix))
 
 plt.title(f"CL distribution for constant distribution with {int(n/2)} HS vortices")
 plt.xlabel('Normalized Spanwise coordinate')
 plt.ylabel('CL')
-plt.ylim(0,np.max(CL_matrix)+0.1)
+#plt.ylim(0,np.max(CL_matrix)+0.1)
 plt.grid()
 
 
